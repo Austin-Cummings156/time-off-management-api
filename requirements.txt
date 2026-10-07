@@ -1,0 +1,6 @@
+# Match the versions currently installed in the project environment.
+fastapi==0.142.2
+pydantic==2.13.5
+
+# ASGI server for running the API (not yet installed locally).
+# uvicorn>=0.30,<1.0
