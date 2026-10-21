@@ -138,31 +138,6 @@ def get_department(department_id: int) -> dict | None:
     return dict(row)
 
 
-def update_department(
-    department_id: int,
-    department: models.DepartmentCreate
-) -> bool:
-    """Update a department and return whether a record was changed."""
-
-    with get_connection() as connection:
-        cursor = connection.execute(
-            """
-            UPDATE departments
-            SET
-                name = ?,
-                max_people_off = ?
-            WHERE id = ?
-            """,
-            (
-                department.name,
-                department.max_people_off,
-                department_id
-            )
-        )
-
-        return cursor.rowcount > 0
-
-
 def count_approved_department_overlaps(
     department_id: int,
     start_datetime: datetime,
@@ -269,41 +244,6 @@ def get_shift(shift_id: int) -> dict | None:
         return None
         
     return dict(row)
-    
-    
-def update_shift(
-    shift_id: int,
-    shift: models.ShiftCreate
-) -> bool:
-    """Update a shift and return whether a record was changed."""
-    
-    with get_connection() as connection:
-        cursor = connection.execute(
-            """
-            UPDATE shifts
-            SET
-                name = ?,
-                start_time = ?,
-                end_time = ?,
-                length_hours = ?,
-                cycle_length_days = ?,
-                work_pattern = ?,
-                anchor_date = ?
-            WHERE id = ?
-            """,
-            (
-                shift.name,
-                shift.start_time.isoformat(),
-                shift.end_time.isoformat(),
-                shift.length_hours,
-                shift.cycle_length_days,
-                shift.work_pattern,
-                shift.anchor_date.isoformat(),
-                shift_id
-            )
-        )
-        
-        return cursor.rowcount > 0
         
 
 # Employee operations
@@ -385,41 +325,6 @@ def get_employee(employee_id: int) -> dict | None:
         return None
         
     return dict(row)
-    
-    
-def update_employee(
-    employee_id: int,
-    employee: models.EmployeeCreate
-) -> bool:
-    """Update an employee and return whether a record was changed."""
-    
-    with get_connection() as connection:
-        cursor = connection.execute(
-            """
-            UPDATE employees
-            SET
-                name = ?,
-                department_id = ?,
-                shift_id = ?,
-                active = ?,
-                vacation_hours = ?,
-                personal_hours = ?,
-                sick_hours = ?
-            WHERE id = ?
-            """,
-            (
-                employee.name,
-                employee.department_id,
-                employee.shift_id,
-                employee.active,
-                employee.vacation_hours,
-                employee.personal_hours,
-                employee.sick_hours,
-                employee_id
-            )
-        )
-        
-        return cursor.rowcount > 0
 
 
 # Time-off request operations
@@ -509,40 +414,6 @@ def get_time_off_request(request_id: int) -> dict | None:
         return None
         
     return dict(row)
-    
-    
-def update_time_off_request(
-    request_id: int,
-    time_off_request: models.TimeOffRequestCreate,
-    hours_requested: float
-) -> bool:
-    """Update a time-off request and return whether a record was changed."""
-    
-    with get_connection() as connection:
-        cursor = connection.execute(
-            """
-            UPDATE time_off_requests
-            SET
-                employee_id = ?,
-                start_datetime = ?,
-                end_datetime = ?,
-                leave_type = ?,
-                hours_requested = ?,
-                notes = ?
-            WHERE id = ?
-            """,
-            (
-                time_off_request.employee_id,
-                time_off_request.start_datetime.isoformat(),
-                time_off_request.end_datetime.isoformat(),
-                time_off_request.leave_type,
-                hours_requested,
-                time_off_request.notes,
-                request_id
-            )
-        )
-        
-        return cursor.rowcount > 0
         
         
 def update_time_off_request_status(
@@ -597,19 +468,32 @@ def has_overlapping_time_off_request(
 def approve_time_off_request(
     request_id: int,
     employee_id: int,
-    balance_column: str,
+    leave_type: str,
     hours_requested: float
 ) -> bool:
+    balance_columns = {
+        "vacation": "vacation_hours",
+        "personal": "personal_hours",
+        "sick": "sick_hours"
+    }
+
+    balance_column = balance_columns.get(leave_type)
+
+    if balance_column is None:
+        raise ValueError("Invalid leave type.")
+
     with get_connection() as connection:
         cursor = connection.execute(
             f"""
             UPDATE employees
             SET {balance_column} = {balance_column} - ?
             WHERE id = ?
+              AND {balance_column} >= ?
             """,
             (
                 hours_requested,
-                employee_id
+                employee_id,
+                hours_requested
             )
         )
 

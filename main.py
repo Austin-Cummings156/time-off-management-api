@@ -1,3 +1,4 @@
+import sqlite3
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
@@ -32,7 +33,13 @@ def get_departments():
 
 @app.post("/departments")
 def create_department(department: models.DepartmentCreate):
-    department_id = database.add_department(department)
+    try:
+        department_id = database.add_department(department)
+    except sqlite3.IntegrityError:
+        raise HTTPException(
+            status_code=409,
+            detail="Department name already exists."
+        )
 
     return {
         "id": department_id,
@@ -62,7 +69,13 @@ def get_shifts():
 
 @app.post("/shifts")
 def create_shift(shift: models.ShiftCreate):
-    shift_id = database.add_shift(shift)
+    try:
+        shift_id = database.add_shift(shift)
+    except sqlite3.IntegrityError:
+        raise HTTPException(
+            status_code=409,
+            detail="Shift name already exists."
+        )
 
     return {
         "id": shift_id,
@@ -83,7 +96,7 @@ def get_shift(shift_id: int):
     if shift is None:
         raise HTTPException(
             status_code=404,
-            detail="shift not found."
+            detail="Shift not found."
         )
 
     return shift
@@ -97,6 +110,18 @@ def get_employees():
 
 @app.post("/employees")
 def create_employee(employee: models.EmployeeCreate):
+    if database.get_department(employee.department_id) is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Department not found."
+        )
+
+    if database.get_shift(employee.shift_id) is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Shift not found."
+        )
+
     employee_id = database.add_employee(employee)
 
     return {
@@ -118,7 +143,7 @@ def get_employee(employee_id: int):
     if employee is None:
         raise HTTPException(
             status_code=404,
-            detail="employee not found."
+            detail="Employee not found."
         )
 
     return employee
@@ -167,7 +192,7 @@ def get_time_off_request(time_off_request_id: int):
     if time_off_request is None:
         raise HTTPException(
             status_code=404,
-            detail="time_off_request not found."
+            detail="Time-off request not found."
         )
 
     return time_off_request
@@ -179,8 +204,6 @@ def update_time_off_request_status(
     status_update: models.TimeOffRequestStatusUpdate
 ):
     if status_update.status == "approved":
-        services.approve_time_off_request(request_id)
-    else:
-        services.deny_time_off_request(request_id)
+        return services.approve_time_off_request(request_id)
 
-    return database.get_time_off_request(request_id)
+    return services.deny_time_off_request(request_id)

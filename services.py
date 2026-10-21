@@ -164,7 +164,10 @@ def approve_time_off_request(request_id: int) -> dict:
         raise HTTPException(404, "Employee not found.")
 
     if not employee["active"]:
-        raise HTTPException(409, "Inactive employee request cannot be approved.")
+        raise HTTPException(
+            409,
+            "Inactive employee request cannot be approved."
+        )
 
     department = database.get_department(employee["department_id"])
 
@@ -188,10 +191,23 @@ def approve_time_off_request(request_id: int) -> dict:
             "Department time-off capacity has been reached."
         )
 
-    # approve + deduct balance
+    approved = database.approve_time_off_request(
+        request_id,
+        employee["id"],
+        request["leave_type"],
+        request["hours_requested"]
+    )
+
+    if not approved:
+        raise HTTPException(
+            409,
+            "Request could not be approved."
+        )
+
+    return database.get_time_off_request(request_id)
 
 
-def deny_time_off_request(request_id: int) -> None:
+def deny_time_off_request(request_id: int) -> dict:
     request = database.get_time_off_request(request_id)
 
     if request is None:
@@ -200,7 +216,15 @@ def deny_time_off_request(request_id: int) -> None:
     if request["status"] != "pending":
         raise HTTPException(409, "Only pending requests can be denied.")
 
-    database.update_time_off_request_status(
+    updated = database.update_time_off_request_status(
         request_id,
         "denied"
     )
+
+    if not updated:
+        raise HTTPException(
+            409,
+            "Request could not be denied."
+        )
+
+    return database.get_time_off_request(request_id)
