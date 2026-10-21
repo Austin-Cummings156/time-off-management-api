@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field, model_validator
 
 class DepartmentCreate(BaseModel):
     name: str
-    max_people_off: int = Field(gt = 0)
+    max_people_off: int = Field(gt=0)
 
 
 class ShiftCreate(BaseModel):
@@ -29,15 +29,15 @@ class ShiftCreate(BaseModel):
             )
 
         start_seconds = (
-                self.start_time.hour * 3600
-                + self.start_time.minute * 60
-                + self.start_time.second
+            self.start_time.hour * 3600
+            + self.start_time.minute * 60
+            + self.start_time.second
         )
 
         end_seconds = (
-                self.end_time.hour * 3600
-                + self.end_time.minute * 60
-                + self.end_time.second
+            self.end_time.hour * 3600
+            + self.end_time.minute * 60
+            + self.end_time.second
         )
 
         if end_seconds <= start_seconds:
