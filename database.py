@@ -163,6 +163,33 @@ def update_department(
         return cursor.rowcount > 0
 
 
+def count_approved_department_overlaps(
+    department_id: int,
+    start_datetime: datetime,
+    end_datetime: datetime
+) -> int:
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT COUNT(DISTINCT employees.id) AS count
+            FROM time_off_requests
+            JOIN employees
+              ON employees.id = time_off_requests.employee_id
+            WHERE employees.department_id = ?
+              AND time_off_requests.status = 'approved'
+              AND time_off_requests.start_datetime < ?
+              AND time_off_requests.end_datetime > ?
+            """,
+            (
+                department_id,
+                end_datetime.isoformat(),
+                start_datetime.isoformat()
+            )
+        ).fetchone()
+
+    return row["count"]
+
+
 # Shift operations
 def add_shift(shift: models.ShiftCreate) -> int | None:
     """Add a shift and return its generated database ID."""
@@ -565,6 +592,44 @@ def has_overlapping_time_off_request(
         ).fetchone()
 
     return row is not None
+
+
+def approve_time_off_request(
+    request_id: int,
+    employee_id: int,
+    balance_column: str,
+    hours_requested: float
+) -> bool:
+    with get_connection() as connection:
+        cursor = connection.execute(
+            f"""
+            UPDATE employees
+            SET {balance_column} = {balance_column} - ?
+            WHERE id = ?
+            """,
+            (
+                hours_requested,
+                employee_id
+            )
+        )
+
+        if cursor.rowcount == 0:
+            return False
+
+        cursor = connection.execute(
+            """
+            UPDATE time_off_requests
+            SET status = 'approved'
+            WHERE id = ?
+              AND status = 'pending'
+            """,
+            (request_id,)
+        )
+
+        if cursor.rowcount == 0:
+            raise RuntimeError("Request could not be approved.")
+
+    return True
         
         
 if __name__ == "__main__":

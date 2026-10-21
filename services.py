@@ -147,3 +147,60 @@ def validate_time_off_request(
             status_code=409,
             detail="Employee already has an overlapping time-off request."
         )
+
+
+def approve_time_off_request(request_id: int) -> dict:
+    request = database.get_time_off_request(request_id)
+
+    if request is None:
+        raise HTTPException(404, "Time-off request not found.")
+
+    if request["status"] != "pending":
+        raise HTTPException(409, "Only pending requests can be approved.")
+
+    employee = database.get_employee(request["employee_id"])
+
+    if employee is None:
+        raise HTTPException(404, "Employee not found.")
+
+    if not employee["active"]:
+        raise HTTPException(409, "Inactive employee request cannot be approved.")
+
+    department = database.get_department(employee["department_id"])
+
+    if department is None:
+        raise HTTPException(404, "Department not found.")
+
+    available_hours = employee[f"{request['leave_type']}_hours"]
+
+    if request["hours_requested"] > available_hours:
+        raise HTTPException(409, "Insufficient leave balance.")
+
+    overlapping_approved = database.count_approved_department_overlaps(
+        employee["department_id"],
+        datetime.fromisoformat(request["start_datetime"]),
+        datetime.fromisoformat(request["end_datetime"])
+    )
+
+    if overlapping_approved >= department["max_people_off"]:
+        raise HTTPException(
+            409,
+            "Department time-off capacity has been reached."
+        )
+
+    # approve + deduct balance
+
+
+def deny_time_off_request(request_id: int) -> None:
+    request = database.get_time_off_request(request_id)
+
+    if request is None:
+        raise HTTPException(404, "Time-off request not found.")
+
+    if request["status"] != "pending":
+        raise HTTPException(409, "Only pending requests can be denied.")
+
+    database.update_time_off_request_status(
+        request_id,
+        "denied"
+    )

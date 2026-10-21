@@ -173,3 +173,14 @@ def get_time_off_request(time_off_request_id: int):
     return time_off_request
 
 
+@app.patch("/time_off_requests/{request_id}/status")
+def update_time_off_request_status(
+    request_id: int,
+    status_update: models.TimeOffRequestStatusUpdate
+):
+    if status_update.status == "approved":
+        services.approve_time_off_request(request_id)
+    else:
+        services.deny_time_off_request(request_id)
+
+    return database.get_time_off_request(request_id)

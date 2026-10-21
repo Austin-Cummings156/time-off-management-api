@@ -35,3 +35,7 @@ class TimeOffRequestCreate(BaseModel):
     end_datetime: datetime
     leave_type: Literal["vacation", "personal", "sick"]
     notes: str | None = None
+
+
+class TimeOffRequestStatusUpdate(BaseModel):
+    status: Literal["approved", "denied"]
