@@ -537,6 +537,34 @@ def update_time_off_request_status(
         )
 
         return cursor.rowcount > 0
+
+
+def has_overlapping_time_off_request(
+    employee_id: int,
+    start_datetime: datetime,
+    end_datetime: datetime
+) -> bool:
+    """Return whether an employee has an overlapping active request."""
+
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT 1
+            FROM time_off_requests
+            WHERE employee_id = ?
+              AND status IN ('pending', 'approved')
+              AND start_datetime < ?
+              AND end_datetime > ?
+            LIMIT 1
+            """,
+            (
+                employee_id,
+                end_datetime.isoformat(),
+                start_datetime.isoformat()
+            )
+        ).fetchone()
+
+    return row is not None
         
         
 if __name__ == "__main__":

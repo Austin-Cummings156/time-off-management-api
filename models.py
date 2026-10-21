@@ -1,4 +1,5 @@
 from datetime import date, datetime, time
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -32,8 +33,5 @@ class TimeOffRequestCreate(BaseModel):
     employee_id: int
     start_datetime: datetime
     end_datetime: datetime
-    leave_type: str
-    status: str
-    hours_requested: int
-    created_at: datetime
+    leave_type: Literal["vacation", "personal", "sick"]
     notes: str | None = None
